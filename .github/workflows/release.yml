@@ -42,7 +42,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: [self-hosted, lan-party]
+    runs-on: [self-hosted, homelab]
     concurrency: lan-party-deploy
     steps:
       - name: Login to GHCR

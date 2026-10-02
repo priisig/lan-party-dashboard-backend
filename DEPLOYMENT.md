@@ -12,7 +12,7 @@ Backend and frontend are two separate Docker images:
 ```
 git push            → ci.yml       tests (GitHub runner)
 git tag vX.Y.Z      → release.yml  ├─ build:  build the image, push it to ghcr.io (GitHub runner)
-                                   └─ deploy: on the server (self-hosted runner, label "lan-party")
+                                   └─ deploy: on the server (self-hosted runner, label "homelab")
                                               set BACKEND_VERSION or FRONTEND_VERSION in
                                               /docker/lan-party-dashboard/.env, restart the service
 ```
@@ -62,7 +62,7 @@ jobs replace them via `sed`.
 ### 2. Register two self-hosted runners
 
 `priisig` is a personal account, so runners are registered **per repository**: one for the backend and one for
-the frontend repo, both with label `lan-party`.
+the frontend repo, both with label `homelab`.
 
 For each repo: GitHub → *Settings → Actions → Runners → New self-hosted runner* → Linux / x64. The page shows the
 current runner version, download link, checksum and a registration token (valid 1 h). Then:
@@ -77,7 +77,7 @@ tar xzf actions-runner.tar.gz
   --url https://github.com/priisig/lan-party-dashboard-backend \
   --token <TOKEN-FROM-GITHUB-PAGE> \
   --name lan-party-backend \
-  --labels lan-party
+  --labels homelab
 exit
 ```
 
@@ -222,7 +222,7 @@ variables with `.env.example`, then `docker compose up -d`.
 ## Troubleshooting
 
 - **Deploy job stays at "Waiting for a runner"** – the runner of *that* repo is offline or lacks the label
-  `lan-party`: `systemctl status 'actions.runner.*'`.
+  `homelab`: `systemctl status 'actions.runner.*'`.
 - **`sed: can't read .env`** in the deploy job – `/docker/lan-party-dashboard/.env` is missing or not owned by
   `github-runner`.
 - **`denied` on `docker compose pull`** – manual: log in again with the PAT (step 3).
