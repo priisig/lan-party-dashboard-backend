@@ -25,14 +25,19 @@ import com.lanparty.dashboard.admin.Settings;
 import com.lanparty.dashboard.announcement.Announcement;
 import com.lanparty.dashboard.announcement.AnnouncementRepository;
 import com.lanparty.dashboard.config.LanProperties;
-import com.lanparty.dashboard.event.BeamerSide;
 import com.lanparty.dashboard.event.Event;
 import com.lanparty.dashboard.event.EventRepository;
 import com.lanparty.dashboard.info.InfoItem;
 import com.lanparty.dashboard.info.InfoItemRepository;
 import com.lanparty.dashboard.schedule.ScheduleItem;
 import com.lanparty.dashboard.schedule.ScheduleItemRepository;
+import com.lanparty.dashboard.seating.MarkerAlign;
+import com.lanparty.dashboard.seating.MarkerKind;
+import com.lanparty.dashboard.seating.RoomMarker;
+import com.lanparty.dashboard.seating.RoomMarkerRepository;
+import com.lanparty.dashboard.seating.RoomSide;
 import com.lanparty.dashboard.seating.Seat;
+import com.lanparty.dashboard.seating.SeatOrientation;
 import com.lanparty.dashboard.seating.SeatRepository;
 import com.lanparty.dashboard.seating.SeatRequest;
 import com.lanparty.dashboard.seating.SeatRequestRepository;
@@ -76,6 +81,7 @@ public class DemoSeed implements ApplicationRunner {
     private final SeatingService seating;
     private final SeatRepository seats;
     private final SeatRequestRepository seatRequests;
+    private final RoomMarkerRepository markers;
     private final IntegrationRepository integrations;
     private final StatsService stats;
     private final Settings settings;
@@ -84,7 +90,8 @@ public class DemoSeed implements ApplicationRunner {
     public DemoSeed(LanProperties properties, EventRepository events, InfoItemRepository infos,
                     AnnouncementRepository announcements, GameServerRepository servers, TournamentRepository tournaments,
                     RegistrationRepository registrations, ScheduleItemRepository schedule, SeatingService seating,
-                    SeatRepository seats, SeatRequestRepository seatRequests, IntegrationRepository integrations,
+                    SeatRepository seats, SeatRequestRepository seatRequests, RoomMarkerRepository markers,
+                    IntegrationRepository integrations,
                     StatsService stats, Settings settings, Clock clock) {
         this.properties = properties;
         this.events = events;
@@ -97,6 +104,7 @@ public class DemoSeed implements ApplicationRunner {
         this.seating = seating;
         this.seats = seats;
         this.seatRequests = seatRequests;
+        this.markers = markers;
         this.integrations = integrations;
         this.stats = stats;
         this.settings = settings;
@@ -126,9 +134,7 @@ public class DemoSeed implements ApplicationRunner {
         e.setActive(true);
         e.setWelcomeTitle("Schön bist du da!\nGL & HF an der VIVO LAN 2026.");
         e.setWelcomeText("Alle Server, Turniere und den Zeitplan findest du hier. Für Turniere meldest du dich direkt im Tab «Turniere» an. Fragen? Das Orga-Team sitzt bei Platz A1.");
-        e.setBeamerSide(BeamerSide.LEFT);
-        e.setSeatLabelStart("Eingang");
-        e.setSeatLabelEnd("Theke");
+        e.setSeatOrientation(SeatOrientation.COLUMNS);
         e.setLogo(resource("demo/logo.jpg"));
         e.setLogoContentType("image/jpeg");
         events.save(e);
@@ -182,6 +188,9 @@ public class DemoSeed implements ApplicationRunner {
         item(id, k.plus(Duration.ofMinutes(450)), "Mitternachts-Snack", "Theke", GREY, null);
         item(id, k.plus(Duration.ofMinutes(510)), "Free Play", "alle Server", GREY, null);
 
+        markers.save(new RoomMarker(id, MarkerKind.BEAMER, "Bühne · Beamer", RoomSide.LEFT, MarkerAlign.CENTER, 0));
+        markers.save(new RoomMarker(id, MarkerKind.ENTRANCE, "Eingang", RoomSide.TOP, MarkerAlign.END, 1));
+        markers.save(new RoomMarker(id, MarkerKind.OTHER, "Theke", RoomSide.BOTTOM, MarkerAlign.END, 2));
         seating.createLayout(id, List.of(new SeatRow(id, "A", 10, 0), new SeatRow(id, "B", 10, 1)), Set.of("A1", "A2"));
         String[] seated = {"Lag_L", "Pixel", "Ping9", "RushB", "AFK_A", "Clutch", "Kai", "Dani", "Rob", "Nina", "Ben", "Ella", "Max", "Vic"};
         List<String> takenLabels = List.of("A3", "A4", "A5", "A7", "A8", "A10", "B1", "B2", "B3", "B5", "B6", "B8", "B9", "B10");

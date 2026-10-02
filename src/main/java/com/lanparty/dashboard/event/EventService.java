@@ -196,9 +196,6 @@ public class EventService {
         target.setWelcomeText(source.getWelcomeText());
         target.setLogo(source.getLogo());
         target.setLogoContentType(source.getLogoContentType());
-        target.setBeamerSide(source.getBeamerSide());
-        target.setSeatLabelStart(source.getSeatLabelStart());
-        target.setSeatLabelEnd(source.getSeatLabelEnd());
         target.setKioskIntervalSec(source.getKioskIntervalSec());
         target.setKioskViews(source.getKioskViews());
     }
@@ -237,6 +234,7 @@ public class EventService {
                 .map(Seat::getLabel)
                 .collect(Collectors.toSet());
         seating.createLayout(to, seatRows.findByEventIdOrderBySort(from), blocked);
+        seating.copyRoom(source, target);
     }
 
     private Event find(Long id) {

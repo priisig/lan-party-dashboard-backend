@@ -16,14 +16,14 @@ public final class EventDtos {
 
     public record EventView(Long id, String slug, String title, String subtitle, String location, String timezone,
                             Instant startsAt, Instant endsAt, boolean active, String welcomeTitle, String welcomeText,
-                            String logoUrl, BeamerSide beamerSide, int kioskIntervalSec, String kioskViews) {
+                            String logoUrl, int kioskIntervalSec, String kioskViews) {
 
         public static EventView of(Event e) {
             String logo = e.getLogoContentType() == null ? null
                     : "/api/public/events/" + e.getId() + "/logo?v=" + Integer.toHexString(java.util.Arrays.hashCode(e.getLogo()));
             return new EventView(e.getId(), e.getSlug(), e.getTitle(), e.getSubtitle(), e.getLocation(), e.getTimezone(),
                     e.getStartsAt(), e.getEndsAt(), e.isActive(), e.getWelcomeTitle(), e.getWelcomeText(), logo,
-                    e.getBeamerSide(), e.getKioskIntervalSec(), e.getKioskViews());
+                    e.getKioskIntervalSec(), e.getKioskViews());
         }
     }
 

@@ -14,6 +14,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import com.lanparty.dashboard.seating.SeatOrientation;
+
 /** One LAN edition, e.g. "VIVO LAN 2026". Exactly one event is active and shown on the dashboard. */
 @Entity
 @Table(name = "event")
@@ -41,10 +43,10 @@ public class Event {
     private String logoContentType;
 
     @Enumerated(EnumType.STRING)
-    private BeamerSide beamerSide = BeamerSide.LEFT;
+    private SeatOrientation seatOrientation = SeatOrientation.ROWS;
 
-    private String seatLabelStart;
-    private String seatLabelEnd;
+    private boolean seatRowsReversed;
+    private boolean seatNumbersReversed;
     private int kioskIntervalSec = 30;
     private String kioskViews = "overview,tournaments,seating,stats";
     private Instant createdAt = Instant.now();
@@ -78,12 +80,12 @@ public class Event {
     public void setLogo(byte[] logo) { this.logo = logo; }
     public String getLogoContentType() { return logoContentType; }
     public void setLogoContentType(String logoContentType) { this.logoContentType = logoContentType; }
-    public BeamerSide getBeamerSide() { return beamerSide; }
-    public void setBeamerSide(BeamerSide beamerSide) { this.beamerSide = beamerSide; }
-    public String getSeatLabelStart() { return seatLabelStart; }
-    public void setSeatLabelStart(String seatLabelStart) { this.seatLabelStart = seatLabelStart; }
-    public String getSeatLabelEnd() { return seatLabelEnd; }
-    public void setSeatLabelEnd(String seatLabelEnd) { this.seatLabelEnd = seatLabelEnd; }
+    public SeatOrientation getSeatOrientation() { return seatOrientation; }
+    public void setSeatOrientation(SeatOrientation seatOrientation) { this.seatOrientation = seatOrientation; }
+    public boolean isSeatRowsReversed() { return seatRowsReversed; }
+    public void setSeatRowsReversed(boolean seatRowsReversed) { this.seatRowsReversed = seatRowsReversed; }
+    public boolean isSeatNumbersReversed() { return seatNumbersReversed; }
+    public void setSeatNumbersReversed(boolean seatNumbersReversed) { this.seatNumbersReversed = seatNumbersReversed; }
     public int getKioskIntervalSec() { return kioskIntervalSec; }
     public void setKioskIntervalSec(int kioskIntervalSec) { this.kioskIntervalSec = kioskIntervalSec; }
     public String getKioskViews() { return kioskViews; }

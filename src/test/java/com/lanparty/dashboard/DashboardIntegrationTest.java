@@ -74,7 +74,7 @@ class DashboardIntegrationTest {
                 .andExpect(jsonPath("$.infos.length()").value(5));
         mvc.perform(get("/api/public/live")).andExpect(jsonPath("$.text").value("CS2 5v5 – Viertelfinal"));
         mvc.perform(get("/api/public/banners")).andExpect(jsonPath("$[0].kind").value("REGISTRATION_CLOSING"));
-        mvc.perform(get("/api/public/seats")).andExpect(jsonPath("$.total").value(20)).andExpect(jsonPath("$.beamerSide").value("LEFT"));
+        mvc.perform(get("/api/public/seats")).andExpect(jsonPath("$.total").value(20)).andExpect(jsonPath("$.orientation").value("COLUMNS")).andExpect(jsonPath("$.markers[0].kind").value("BEAMER"));
         mvc.perform(get("/api/public/tournaments/1")).andExpect(jsonPath("$.bracket.rounds.length()").value(3));
         mvc.perform(get("/api/public/stats")).andExpect(jsonPath("$.widgets.length()").value(2));
     }
@@ -115,9 +115,15 @@ class DashboardIntegrationTest {
         Long eventId = events.findFirstByActiveTrue().orElseThrow().getId();
         JsonNode map = json(mvc.perform(put("/api/admin/events/" + eventId + "/seats/layout").session(session).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"beamerSide\":\"RIGHT\",\"rows\":[{\"id\":1,\"label\":\"A\",\"seatCount\":5},{\"id\":2,\"label\":\"B\",\"seatCount\":10},{\"label\":\"C\",\"seatCount\":3}]}"))
+                .content("{\"orientation\":\"COLUMNS\",\"rowsReversed\":false,\"numbersReversed\":false,"
+                        + "\"markers\":[{\"kind\":\"BEAMER\",\"label\":\"Beamer\",\"side\":\"BOTTOM\",\"align\":\"CENTER\"},"
+                        + "{\"kind\":\"ENTRANCE\",\"label\":\"Eingang\",\"side\":\"LEFT\",\"align\":\"START\"}],"
+                        + "\"rows\":[{\"id\":1,\"label\":\"A\",\"seatCount\":5},{\"id\":2,\"label\":\"B\",\"seatCount\":10},{\"label\":\"C\",\"seatCount\":3}]}"))
                 .andExpect(status().isOk()));
-        assertThat(map.path("beamerSide").asString()).isEqualTo("RIGHT");
+        // Moving the beamer to the bottom must not rotate the seats.
+        assertThat(map.path("orientation").asString()).isEqualTo("COLUMNS");
+        assertThat(map.path("markers").get(0).path("side").asString()).isEqualTo("BOTTOM");
+        assertThat(map.path("markers").get(1).path("kind").asString()).isEqualTo("ENTRANCE");
         assertThat(map.path("total").asInt()).isEqualTo(18);
         assertThat(seats.findByEventIdAndLabelIgnoreCase(eventId, "A3").orElseThrow().getGamertag()).isEqualTo("Lag_L");
         assertThat(seats.findByEventIdAndLabelIgnoreCase(eventId, "A10")).isEmpty();

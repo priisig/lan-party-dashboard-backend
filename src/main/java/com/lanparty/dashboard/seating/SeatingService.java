@@ -19,6 +19,8 @@ import com.lanparty.dashboard.realtime.ChangeNotifier;
 import com.lanparty.dashboard.realtime.Topic;
 import com.lanparty.dashboard.seating.SeatingDtos.AssignRequest;
 import com.lanparty.dashboard.seating.SeatingDtos.LayoutRequest;
+import com.lanparty.dashboard.seating.SeatingDtos.MarkerLayout;
+import com.lanparty.dashboard.seating.SeatingDtos.MarkerView;
 import com.lanparty.dashboard.seating.SeatingDtos.PendingRequest;
 import com.lanparty.dashboard.seating.SeatingDtos.ReservationRequest;
 import com.lanparty.dashboard.seating.SeatingDtos.RowLayout;
@@ -32,14 +34,16 @@ public class SeatingService {
     private final SeatRowRepository rows;
     private final SeatRepository seats;
     private final SeatRequestRepository requests;
+    private final RoomMarkerRepository markers;
     private final EventRepository events;
     private final ChangeNotifier notifier;
 
     public SeatingService(SeatRowRepository rows, SeatRepository seats, SeatRequestRepository requests,
-                          EventRepository events, ChangeNotifier notifier) {
+                          RoomMarkerRepository markers, EventRepository events, ChangeNotifier notifier) {
         this.rows = rows;
         this.seats = seats;
         this.requests = requests;
+        this.markers = markers;
         this.events = events;
         this.notifier = notifier;
     }
@@ -71,8 +75,9 @@ public class SeatingService {
             }
             rowViews.add(new RowView(row.getId(), row.getLabel(), seatViews));
         }
-        return new SeatMapView(event.getBeamerSide(), event.getSeatLabelStart(), event.getSeatLabelEnd(), rowViews,
-                taken, free, blocked, taken + free + blocked);
+        List<MarkerView> markerViews = markers.findByEventIdOrderBySort(event.getId()).stream().map(MarkerView::of).toList();
+        return new SeatMapView(event.getSeatOrientation(), event.isSeatRowsReversed(), event.isSeatNumbersReversed(),
+                markerViews, rowViews, taken, free, blocked, taken + free + blocked);
     }
 
     @Transactional
@@ -168,9 +173,14 @@ public class SeatingService {
             }
         }
         Event managed = events.findById(event.getId()).orElseThrow();
-        managed.setBeamerSide(request.beamerSide());
-        managed.setSeatLabelStart(blankToNull(request.labelStart()));
-        managed.setSeatLabelEnd(blankToNull(request.labelEnd()));
+        managed.setSeatOrientation(request.orientation());
+        managed.setSeatRowsReversed(request.rowsReversed());
+        managed.setSeatNumbersReversed(request.numbersReversed());
+        markers.deleteByEventId(event.getId());
+        int markerSort = 0;
+        for (MarkerLayout m : request.markers()) {
+            markers.save(new RoomMarker(event.getId(), m.kind(), m.label().trim(), m.side(), m.align(), markerSort++));
+        }
 
         Map<Long, SeatRow> existingRows = new HashMap<>();
         rows.findByEventIdOrderBySort(event.getId()).forEach(r -> existingRows.put(r.getId(), r));
@@ -208,6 +218,15 @@ public class SeatingService {
         });
         rows.deleteAll(existingRows.values());
         notifier.publish(Topic.SEATS);
+    }
+
+    /** Copies orientation and room markers from one event to another (clone). */
+    @Transactional
+    public void copyRoom(Event source, Event target) {
+        target.setSeatOrientation(source.getSeatOrientation());
+        target.setSeatRowsReversed(source.isSeatRowsReversed());
+        target.setSeatNumbersReversed(source.isSeatNumbersReversed());
+        markers.findByEventIdOrderBySort(source.getId()).forEach(m -> markers.save(m.copyTo(target.getId())));
     }
 
     /** Creates a fresh layout with free seats, used for new events and clones. */
