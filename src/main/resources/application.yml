@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: lan-dashboard
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/lan_dashboard}
+    username: ${DB_USER:lan}
+    password: ${DB_PASSWORD:lan}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  threads:
+    virtual:
+      enabled: true
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 3MB
+  mvc:
+    async:
+      # SSE connections stay open; the emitter itself has no timeout.
+      request-timeout: -1
+
+server:
+  port: ${PORT:8080}
+  # Behind nginx: use X-Forwarded-For so the login lock works per client, not per proxy.
+  forward-headers-strategy: native
+  servlet:
+    session:
+      timeout: 24h
+      cookie:
+        same-site: lax
+        http-only: true
+        # true in production (HTTPS via reverse proxy), see deploy/.env.example
+        secure: ${COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      # /actuator/health/readiness for the Docker healthcheck (only auto-enabled on Kubernetes)
+      probes:
+        enabled: true
+
+lan:
+  bootstrap-admin-name: ${LAN_BOOTSTRAP_ADMIN_NAME:Admin}
+  bootstrap-admin-code: ${LAN_BOOTSTRAP_ADMIN_CODE:}
+  seed-demo: ${LAN_SEED_DEMO:false}
+  challonge-base-url: ${CHALLONGE_BASE_URL:https://api.challonge.com/v1}
+  challonge-poll-ms: 30000
+  server-query-ms: 20000
+  integration-poll-ms: 20000
+
+logging:
+  level:
+    com.lanparty: INFO

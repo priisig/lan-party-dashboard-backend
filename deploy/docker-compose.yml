@@ -1,0 +1,67 @@
+# Production stack for the homeserver. Copy to /docker/lan-party-dashboard/ and create a .env next to it
+# (template: deploy/.env.example). The release.yml workflows of both repos set BACKEND_VERSION or
+# FRONTEND_VERSION in that .env and restart their service. Details: DEPLOYMENT.md.
+#
+# Only the frontend container publishes a port. Its nginx serves the React app and proxies /api/ (incl.
+# Server-Sent Events) to the backend, so app and API share one origin (session cookie). The reverse proxy
+# (TLS) therefore only points at FRONTEND_PORT.
+name: lan-party-dashboard
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: lan-party-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lan_dashboard}
+      POSTGRES_USER: ${POSTGRES_USER:-lan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      TZ: ${TZ:-Europe/Zurich}
+    volumes:
+      - lan-party_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: ghcr.io/priisig/lan-party-dashboard-backend:${BACKEND_VERSION:?set BACKEND_VERSION in .env}
+    container_name: lan-party-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the compose network the database is called "db".
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-lan_dashboard}
+      DB_USER: ${POSTGRES_USER:-lan}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      LAN_BOOTSTRAP_ADMIN_NAME: ${LAN_BOOTSTRAP_ADMIN_NAME:-Admin}
+      LAN_BOOTSTRAP_ADMIN_CODE: ${LAN_BOOTSTRAP_ADMIN_CODE:-}
+      LAN_SEED_DEMO: ${LAN_SEED_DEMO:-false}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
+      TZ: ${TZ:-Europe/Zurich}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  frontend:
+    image: ghcr.io/priisig/lan-party-dashboard-frontend:${FRONTEND_VERSION:?set FRONTEND_VERSION in .env}
+    container_name: lan-party-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+
+volumes:
+  # Fixed name, independent of the compose project name.
+  lan-party_pgdata:
+    name: lan-party_pgdata
