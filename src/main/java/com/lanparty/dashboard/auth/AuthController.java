@@ -79,14 +79,15 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    /** The logged-in account, or 204 for visitors (every page asks, so no error status for the normal case). */
     @GetMapping("/me")
-    public ResponseEntity<?> me(Authentication authentication) {
+    public ResponseEntity<Me> me(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Nicht eingeloggt."));
+            return ResponseEntity.noContent().build();
         }
         return users.findActive(principal.id())
-                .<ResponseEntity<?>>map(u -> ResponseEntity.ok(Me.of(u)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Nicht eingeloggt.")));
+                .map(u -> ResponseEntity.ok(Me.of(u)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /** Touching the token makes Spring set the XSRF-TOKEN cookie, so the SPA can call this once on start. */

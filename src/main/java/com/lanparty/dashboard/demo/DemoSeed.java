@@ -145,8 +145,8 @@ public class DemoSeed implements ApplicationRunner {
         e.getNetwork().setTsPort(9987);
         e.getSeatRules().setSeatApprovalRequired(true);
         e.getSeatRules().setSeatInfo("Pro Platz: [TISCHBREITE] cm Tischfläche, 1 Steckdose (Mehrfachstecker mitbringen) und 1 LAN-Port.");
-        e.setLogo(resource("demo/logo.jpg"));
-        e.setLogoContentType("image/jpeg");
+        e.setLogo(resource("demo/logo.png"));
+        e.setLogoContentType("image/png");
         events.save(e);
         Long id = e.getId();
 
