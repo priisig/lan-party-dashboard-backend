@@ -17,41 +17,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.lanparty.dashboard.admin.Admin;
-import com.lanparty.dashboard.admin.AdminService;
 import com.lanparty.dashboard.admin.Settings;
-import com.lanparty.dashboard.auth.AdminPrincipal;
 
-/** Global settings (Challonge key, push token) and admin accounts. */
+/** Global settings (Challonge key, push token). Accounts are managed in AdminUserController. */
 @RestController
 @RequestMapping("/api/admin")
 public class AdminSettingsController {
 
     private final Settings settings;
-    private final AdminService admins;
-
-    public AdminSettingsController(Settings settings, AdminService admins) {
+    public AdminSettingsController(Settings settings) {
         this.settings = settings;
-        this.admins = admins;
     }
 
     public record SettingsView(boolean challongeConfigured, String challongeKeyHint, String pushToken) {
     }
 
     public record ChallongeKeyRequest(@Size(max = 200) String apiKey) {
-    }
-
-    public record AdminView(Long id, String name, String codeHint) {
-        static AdminView of(Admin a) {
-            return new AdminView(a.getId(), a.getName(), a.getCodeHint());
-        }
-    }
-
-    /** {@code code} is only returned once, right after creating or regenerating. */
-    public record AdminWithCode(AdminView admin, String code) {
-    }
-
-    public record CreateAdminRequest(@NotBlank @Size(max = 60) String name) {
     }
 
     @GetMapping("/settings")
@@ -71,28 +52,5 @@ public class AdminSettingsController {
     public SettingsView regeneratePushToken() {
         settings.regeneratePushToken();
         return settings();
-    }
-
-    @GetMapping("/admins")
-    public List<AdminView> admins() {
-        return admins.list().stream().map(AdminView::of).toList();
-    }
-
-    @PostMapping("/admins")
-    public AdminWithCode createAdmin(@Valid @RequestBody CreateAdminRequest request) {
-        var created = admins.create(request.name());
-        return new AdminWithCode(AdminView.of(created.admin()), created.code());
-    }
-
-    @PostMapping("/admins/{id}/code")
-    public AdminWithCode regenerate(@PathVariable Long id) {
-        var created = admins.regenerateCode(id);
-        return new AdminWithCode(AdminView.of(created.admin()), created.code());
-    }
-
-    @DeleteMapping("/admins/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal AdminPrincipal me) {
-        admins.delete(id, me.id());
-        return ResponseEntity.noContent().build();
     }
 }

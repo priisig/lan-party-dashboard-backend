@@ -31,8 +31,13 @@ Server setup, reverse proxy (SSE!), backups and rollback: **[DEPLOYMENT.md](DEPL
 | `backend` | this application (port 8080, internal only) |
 | `frontend` | nginx: serves the React build and proxies `/api` (incl. Server-Sent Events) to the backend |
 
-Log in at `/admin` with `LAN_BOOTSTRAP_ADMIN_CODE`, then create further admins under **Admin → Admins** (each admin
-gets their own code).
+**Accounts:** participants register at `/registrieren`; an account is needed to reserve a seat or sign up for a
+tournament. Organisers are accounts with the role *Orga*. The first one is created from `LAN_BOOTSTRAP_ADMIN_EMAIL` /
+`LAN_BOOTSTRAP_ADMIN_PASSWORD`; further organisers register normally and get the role under **Admin → Teilnehmer**.
+There is no e-mail: forgotten passwords are reset by an organiser (*Teilnehmer → Passwort zurücksetzen*).
+
+> Upgrading from the admin-code version: migration `V4` removes the old admin codes. Set the three
+> `LAN_BOOTSTRAP_ADMIN_*` variables before deploying, otherwise nobody can reach the admin panel.
 
 **Beamer:** open `https://<domain>/?kiosk=1` in fullscreen (F11). The kiosk mode rotates through the views
 configured under *Admin → Allgemein → Beamer / Kiosk-Modus*, hides the cursor and never scrolls.
@@ -69,8 +74,8 @@ real event, or delete the demo event afterwards.
 docker run -d --name lan-pg -e POSTGRES_DB=lan_dashboard -e POSTGRES_USER=lan -e POSTGRES_PASSWORD=lan \
   -p 5432:5432 postgres:17-alpine
 
-# Run with demo data and admin code 12345678
-LAN_SEED_DEMO=true LAN_BOOTSTRAP_ADMIN_CODE=12345678 ./gradlew bootRun     # Windows: gradlew.bat bootRun
+# Run with demo data and an organiser account orga@lan.local / orga-pass
+LAN_SEED_DEMO=true LAN_BOOTSTRAP_ADMIN_EMAIL=orga@lan.local LAN_BOOTSTRAP_ADMIN_PASSWORD=orga-pass ./gradlew bootRun
 
 ./gradlew test        # unit + integration tests (Testcontainers starts its own Postgres)
 ./gradlew bootJar     # build/libs/lan-dashboard-backend.jar
@@ -84,8 +89,9 @@ Start the frontend with `npm run dev` in the frontend repo. Vite proxies `/api` 
 |---|---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/lan_dashboard` | JDBC URL |
 | `DB_USER` / `DB_PASSWORD` | `lan` / `lan` | DB credentials |
-| `LAN_BOOTSTRAP_ADMIN_CODE` | – | creates the first admin if none exists (≥ 6 characters) |
-| `LAN_BOOTSTRAP_ADMIN_NAME` | `Admin` | name of that admin |
+| `LAN_BOOTSTRAP_ADMIN_EMAIL` | – | login of the first organiser account, created if no organiser exists |
+| `LAN_BOOTSTRAP_ADMIN_PASSWORD` | – | its password (≥ 8 characters) |
+| `LAN_BOOTSTRAP_ADMIN_NICKNAME` | `Orga` | its nickname |
 | `LAN_SEED_DEMO` | `false` | demo event when the DB is empty |
 | `CHALLONGE_BASE_URL` | `https://api.challonge.com/v1` | Challonge API |
 | `COOKIE_SECURE` | `false` | session cookie only over HTTPS (`true` in production) |

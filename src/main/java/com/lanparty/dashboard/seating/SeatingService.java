@@ -15,6 +15,11 @@ import com.lanparty.dashboard.common.BadRequestException;
 import com.lanparty.dashboard.common.NotFoundException;
 import com.lanparty.dashboard.event.Event;
 import com.lanparty.dashboard.event.EventRepository;
+import com.lanparty.dashboard.event.SeatRules;
+import com.lanparty.dashboard.user.AppUser;
+import com.lanparty.dashboard.user.AppUserRepository;
+import com.lanparty.dashboard.user.Participant;
+import com.lanparty.dashboard.user.ParticipantRepository;
 import com.lanparty.dashboard.realtime.ChangeNotifier;
 import com.lanparty.dashboard.realtime.Topic;
 import com.lanparty.dashboard.seating.SeatingDtos.AssignRequest;
@@ -35,15 +40,20 @@ public class SeatingService {
     private final SeatRepository seats;
     private final SeatRequestRepository requests;
     private final RoomMarkerRepository markers;
+    private final AppUserRepository users;
+    private final ParticipantRepository participants;
     private final EventRepository events;
     private final ChangeNotifier notifier;
 
     public SeatingService(SeatRowRepository rows, SeatRepository seats, SeatRequestRepository requests,
-                          RoomMarkerRepository markers, EventRepository events, ChangeNotifier notifier) {
+                          RoomMarkerRepository markers, AppUserRepository users, ParticipantRepository participants,
+                          EventRepository events, ChangeNotifier notifier) {
         this.rows = rows;
         this.seats = seats;
         this.requests = requests;
         this.markers = markers;
+        this.users = users;
+        this.participants = participants;
         this.events = events;
         this.notifier = notifier;
     }
@@ -57,6 +67,8 @@ public class SeatingService {
                 : requests.findBySeatIdInAndStatusOrderByCreatedAt(seatList.stream().map(Seat::getId).toList(), RequestStatus.PENDING)
                 .stream().map(SeatRequest::getSeatId).collect(Collectors.toSet());
         Map<Long, List<Seat>> byRow = seatList.stream().collect(Collectors.groupingBy(Seat::getRowId));
+        Map<Long, AppUser> people = users.findByIdIn(seatList.stream().map(Seat::getUserId).filter(java.util.Objects::nonNull).toList())
+                .stream().collect(Collectors.toMap(AppUser::getId, u -> u));
 
         int taken = 0;
         int free = 0;
@@ -70,7 +82,7 @@ public class SeatingService {
                     case FREE -> free++;
                     case BLOCKED -> blocked++;
                 }
-                seatViews.add(new SeatView(s.getLabel(), s.getNumber(), s.getStatus(), s.getGamertag(),
+                seatViews.add(new SeatView(s.getLabel(), s.getNumber(), s.getStatus(), displayName(s, people, includeNotes),
                         pendingSeatIds.contains(s.getId()), includeNotes ? s.getNote() : null));
             }
             rowViews.add(new RowView(row.getId(), row.getLabel(), seatViews));
@@ -80,24 +92,84 @@ public class SeatingService {
                 markerViews, rowViews, taken, free, blocked, taken + free + blocked);
     }
 
+    /** Current account name; hidden on the public map when the user doesn't want to be shown. */
+    private static String displayName(Seat s, Map<Long, AppUser> people, boolean admin) {
+        if (s.getUserId() == null) {
+            return s.getGamertag();
+        }
+        AppUser u = people.get(s.getUserId());
+        if (u == null) {
+            return s.getGamertag();
+        }
+        return admin || u.isShowOnSeatmap() ? u.getNickname() : null;
+    }
+
+    // ------------------------------------------------------------------ participant self-service
+
+    public record MySeat(String seat, String pending) {
+    }
+
+    @Transactional(readOnly = true)
+    public MySeat mySeat(Event event, Long userId) {
+        String seat = seats.findFirstByEventIdAndUserId(event.getId(), userId).map(Seat::getLabel).orElse(null);
+        String pending = myPending(event, userId).stream().findFirst()
+                .flatMap(r -> seats.findById(r.getSeatId())).map(Seat::getLabel).orElse(null);
+        return new MySeat(seat, pending);
+    }
+
+    /**
+     * Books a seat for the logged-in user, or files a request when the event requires approval.
+     * A user with a seat moves to the new one (if changes are allowed); the old seat is freed.
+     */
     @Transactional
-    public void requestSeat(Event event, String label, ReservationRequest request) {
-        Seat seat = seat(event, label);
-        if (seat.getStatus() != SeatStatus.FREE) {
-            throw new BadRequestException("Platz " + seat.getLabel() + " ist nicht frei.");
+    public void reserve(Event event, AppUser user, String label, ReservationRequest request) {
+        SeatRules rules = event.getSeatRules();
+        if (!rules.isSeatSelectionOpen()) {
+            throw new BadRequestException("Die Platzwahl ist geschlossen – bitte wende dich an die Orga.");
         }
-        if (requests.existsBySeatIdAndStatus(seat.getId(), RequestStatus.PENDING)) {
-            throw new BadRequestException("Für Platz " + seat.getLabel() + " liegt bereits eine Reservation vor.");
+        Seat target = seat(event, label);
+        Seat current = seats.findFirstByEventIdAndUserId(event.getId(), user.getId()).orElse(null);
+        if (current != null && current.getId().equals(target.getId())) {
+            return;
         }
-        String gamertag = request.gamertag().trim();
-        seats.findByEventId(event.getId()).stream()
-                .filter(s -> gamertag.equalsIgnoreCase(s.getGamertag()))
-                .findFirst()
-                .ifPresent(s -> {
-                    throw new BadRequestException(gamertag + " sitzt bereits auf Platz " + s.getLabel() + ".");
-                });
-        requests.save(new SeatRequest(seat.getId(), gamertag, blankToNull(request.companions())));
+        if (current != null && !rules.isSeatChangeAllowed()) {
+            throw new BadRequestException("Platzwechsel sind gerade nicht möglich – bitte wende dich an die Orga.");
+        }
+        if (target.getStatus() != SeatStatus.FREE) {
+            throw new BadRequestException("Platz " + target.getLabel() + " ist nicht frei.");
+        }
+        boolean othersWaiting = requests.findBySeatIdInAndStatusOrderByCreatedAt(List.of(target.getId()), RequestStatus.PENDING).stream()
+                .anyMatch(r -> !user.getId().equals(r.getUserId()));
+        if (othersWaiting) {
+            throw new BadRequestException("Für Platz " + target.getLabel() + " liegt bereits eine Reservation vor.");
+        }
+        // Only one open request per user.
+        myPending(event, user.getId()).forEach(r -> r.setStatus(RequestStatus.REJECTED));
+        if (rules.isSeatApprovalRequired()) {
+            requests.save(new SeatRequest(target.getId(), user.getNickname(), user.getId(),
+                    request == null ? null : blankToNull(request.companions())));
+        } else {
+            if (current != null) {
+                current.release();
+            }
+            target.assign(user.getNickname(), user.getId());
+        }
         notifier.publish(Topic.SEATS);
+    }
+
+    /** Gives up the own seat and withdraws open requests. */
+    @Transactional
+    public void cancel(Event event, Long userId) {
+        myPending(event, userId).forEach(r -> r.setStatus(RequestStatus.REJECTED));
+        seats.findFirstByEventIdAndUserId(event.getId(), userId).ifPresent(Seat::release);
+        notifier.publish(Topic.SEATS);
+    }
+
+    private List<SeatRequest> myPending(Event event, Long userId) {
+        Set<Long> eventSeats = seats.findByEventId(event.getId()).stream().map(Seat::getId).collect(Collectors.toSet());
+        return requests.findByUserIdAndStatus(userId, RequestStatus.PENDING).stream()
+                .filter(r -> eventSeats.contains(r.getSeatId()))
+                .toList();
     }
 
     // ------------------------------------------------------------------ admin
@@ -117,7 +189,9 @@ public class SeatingService {
     public void approve(Event event, Long requestId) {
         SeatRequest request = request(event, requestId);
         Seat seat = seats.findById(request.getSeatId()).orElseThrow();
-        assignInternal(event, seat, request.getGamertag());
+        String name = request.getUserId() == null ? request.getGamertag()
+                : users.findById(request.getUserId()).map(AppUser::getNickname).orElse(request.getGamertag());
+        assignInternal(event, seat, name, request.getUserId());
         request.setStatus(RequestStatus.APPROVED);
         rejectOthers(seat.getId(), requestId);
         notifier.publish(Topic.SEATS);
@@ -140,7 +214,9 @@ public class SeatingService {
                 seat.release();
             }
         } else {
-            assignInternal(event, seat, gamertag);
+            // Typing an account's nickname links the seat to that account.
+            Long userId = users.findByNicknameIgnoreCase(gamertag).map(AppUser::getId).orElse(null);
+            assignInternal(event, seat, gamertag, userId);
             rejectOthers(seat.getId(), null);
         }
         notifier.publish(Topic.SEATS);
@@ -244,16 +320,21 @@ public class SeatingService {
         }
     }
 
-    private void assignInternal(Event event, Seat seat, String gamertag) {
+    private void assignInternal(Event event, Seat seat, String gamertag, Long userId) {
         if (seat.getStatus() == SeatStatus.BLOCKED) {
             throw new BadRequestException("Platz " + seat.getLabel() + " ist gesperrt – zuerst freigeben.");
         }
         for (Seat other : seats.findByEventId(event.getId())) {
-            if (!other.getId().equals(seat.getId()) && gamertag.equalsIgnoreCase(other.getGamertag())) {
+            boolean same = userId != null ? userId.equals(other.getUserId()) : gamertag.equalsIgnoreCase(other.getGamertag());
+            if (!other.getId().equals(seat.getId()) && same) {
                 other.release();
             }
         }
-        seat.assign(gamertag);
+        seat.assign(gamertag, userId);
+        if (userId != null) {
+            participants.findByEventIdAndUserId(event.getId(), userId)
+                    .orElseGet(() -> participants.save(new Participant(event.getId(), userId)));
+        }
     }
 
     private void rejectOthers(Long seatId, Long exceptRequestId) {

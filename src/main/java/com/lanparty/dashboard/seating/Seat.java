@@ -23,6 +23,8 @@ public class Seat {
     private SeatStatus status = SeatStatus.FREE;
 
     private String gamertag;
+    /** Account sitting here; null for seats an orga assigned by name only. */
+    private Long userId;
     private String note;
 
     protected Seat() {
@@ -35,19 +37,22 @@ public class Seat {
         this.label = label;
     }
 
-    public void assign(String gamertag) {
+    public void assign(String gamertag, Long userId) {
         this.status = SeatStatus.TAKEN;
         this.gamertag = gamertag;
+        this.userId = userId;
     }
 
     public void block() {
         this.status = SeatStatus.BLOCKED;
         this.gamertag = null;
+        this.userId = null;
     }
 
     public void release() {
         this.status = SeatStatus.FREE;
         this.gamertag = null;
+        this.userId = null;
     }
 
     public Long getId() { return id; }
@@ -58,6 +63,7 @@ public class Seat {
     public String getLabel() { return label; }
     public SeatStatus getStatus() { return status; }
     public String getGamertag() { return gamertag; }
+    public Long getUserId() { return userId; }
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
 }

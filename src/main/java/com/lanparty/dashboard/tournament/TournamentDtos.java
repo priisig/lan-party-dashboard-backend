@@ -28,11 +28,10 @@ public final class TournamentDtos {
     public record Detail(Summary summary, Bracket bracket, List<String> participants, Instant snapshotAt) {
     }
 
+    /** Sign-up of the logged-in user; gamertag and seat come from the account. */
     public record RegistrationRequest(
-            @NotBlank @Size(max = 60) String gamertag,
             @Size(max = 80) String teamName,
             @Size(max = 300) String teammates,
-            @Size(max = 20) String seatLabel,
             boolean rulesAccepted) {
     }
 

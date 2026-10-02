@@ -11,6 +11,10 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByTournamentId(Long tournamentId);
 
+    java.util.Optional<Registration> findByTournamentIdAndUserId(Long tournamentId, Long userId);
+
+    List<Registration> findByUserIdAndTournamentIdIn(Long userId, List<Long> tournamentIds);
+
     @Query("select r.tournamentId, count(r) from Registration r where r.tournamentId in :ids group by r.tournamentId")
     List<Object[]> countGrouped(List<Long> ids);
 }

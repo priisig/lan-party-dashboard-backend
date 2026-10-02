@@ -10,17 +10,22 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
+
+import com.lanparty.dashboard.user.UserService;
 
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, UserService users) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ORGA")
+                        .requestMatchers("/api/me/**").authenticated()
                         .anyRequest().permitAll())
+                .addFilterAfter(new SessionUserFilter(users, securityContextRepository()), SecurityContextHolderFilter.class)
                 // The SPA reads the XSRF-TOKEN cookie and sends it back as X-XSRF-TOKEN.
                 // The push API is token-authenticated and called by scripts, so it is exempt.
                 .csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/push/**"))

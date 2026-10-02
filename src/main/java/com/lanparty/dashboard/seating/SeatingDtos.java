@@ -34,7 +34,8 @@ public final class SeatingDtos {
                               List<MarkerView> markers, List<RowView> rows, int taken, int free, int blocked, int total) {
     }
 
-    public record ReservationRequest(@NotBlank @Size(max = 60) String gamertag, @Size(max = 300) String companions) {
+    /** @param companions free text, e.g. friends who want to sit nearby */
+    public record ReservationRequest(@Size(max = 300) String companions) {
     }
 
     public record PendingRequest(Long id, String seat, String gamertag, String companions, Instant createdAt) {

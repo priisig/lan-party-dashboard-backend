@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
-/** Locks the admin login for a client after too many wrong codes (5 attempts → 5 minutes). */
+/** Locks the login for a client after too many wrong passwords (5 attempts → 5 minutes). */
 @Service
 public class LoginAttemptService {
 

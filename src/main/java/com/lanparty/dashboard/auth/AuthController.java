@@ -6,7 +6,7 @@ import java.util.Map;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,27 +23,35 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.lanparty.dashboard.admin.AdminService;
+import com.lanparty.dashboard.user.AppUser;
+import com.lanparty.dashboard.user.UserDtos.LoginRequest;
+import com.lanparty.dashboard.user.UserDtos.Me;
+import com.lanparty.dashboard.user.UserDtos.RegisterRequest;
+import com.lanparty.dashboard.user.UserService;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AdminService admins;
+    private final UserService users;
     private final LoginAttemptService attempts;
     private final SecurityContextRepository contextRepository;
 
-    public AuthController(AdminService admins, LoginAttemptService attempts, SecurityContextRepository contextRepository) {
-        this.admins = admins;
+    public AuthController(UserService users, LoginAttemptService attempts, SecurityContextRepository contextRepository) {
+        this.users = users;
         this.attempts = attempts;
         this.contextRepository = contextRepository;
     }
 
-    public record LoginRequest(@NotBlank String code) {
+    @PostMapping("/register")
+    public Me register(@Valid @RequestBody RegisterRequest body, HttpServletRequest request, HttpServletResponse response) {
+        AppUser user = users.register(body);
+        signIn(user, request, response);
+        return Me.of(user);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest body, HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest body, HttpServletRequest request, HttpServletResponse response) {
         String client = request.getRemoteAddr();
         var lock = attempts.lockRemaining(client);
         if (!lock.isZero()) {
@@ -51,27 +59,14 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Zu viele Fehlversuche. Bitte in " + minutes + " Min. erneut versuchen."));
         }
-        var admin = body.code() == null ? null : admins.findByCode(body.code().trim()).orElse(null);
-        if (admin == null) {
+        var user = users.authenticate(body.login(), body.password()).orElse(null);
+        if (user == null) {
             attempts.failed(client);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Code ungültig."));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Login oder Passwort falsch."));
         }
         attempts.succeeded(client);
-
-        // New session id on login (session fixation protection).
-        HttpSession old = request.getSession(false);
-        if (old != null) {
-            old.invalidate();
-        }
-        request.getSession(true);
-        var principal = new AdminPrincipal(admin.getId(), admin.getName());
-        Authentication auth = UsernamePasswordAuthenticationToken.authenticated(principal, null,
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(auth);
-        SecurityContextHolder.setContext(context);
-        contextRepository.saveContext(context, request, response);
-        return ResponseEntity.ok(principal);
+        signIn(user, request, response);
+        return ResponseEntity.ok(Me.of(user));
     }
 
     @PostMapping("/logout")
@@ -86,15 +81,35 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<?> me(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof AdminPrincipal principal)) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Nicht eingeloggt."));
         }
-        return ResponseEntity.ok(principal);
+        return users.findActive(principal.id())
+                .<ResponseEntity<?>>map(u -> ResponseEntity.ok(Me.of(u)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Nicht eingeloggt.")));
     }
 
     /** Touching the token makes Spring set the XSRF-TOKEN cookie, so the SPA can call this once on start. */
     @GetMapping("/csrf")
     public Map<String, String> csrf(CsrfToken token) {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
+    }
+
+    private void signIn(AppUser user, HttpServletRequest request, HttpServletResponse response) {
+        // New session id on login (session fixation protection).
+        HttpSession old = request.getSession(false);
+        if (old != null) {
+            old.invalidate();
+        }
+        request.getSession(true);
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication(UserPrincipal.of(user)));
+        SecurityContextHolder.setContext(context);
+        contextRepository.saveContext(context, request, response);
+    }
+
+    static Authentication authentication(UserPrincipal principal) {
+        return UsernamePasswordAuthenticationToken.authenticated(principal, null,
+                List.of(new SimpleGrantedAuthority("ROLE_" + principal.role().name())));
     }
 }

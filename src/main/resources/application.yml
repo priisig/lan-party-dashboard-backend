@@ -46,8 +46,9 @@ management:
         enabled: true
 
 lan:
-  bootstrap-admin-name: ${LAN_BOOTSTRAP_ADMIN_NAME:Admin}
-  bootstrap-admin-code: ${LAN_BOOTSTRAP_ADMIN_CODE:}
+  bootstrap-admin-nickname: ${LAN_BOOTSTRAP_ADMIN_NICKNAME:Orga}
+  bootstrap-admin-email: ${LAN_BOOTSTRAP_ADMIN_EMAIL:}
+  bootstrap-admin-password: ${LAN_BOOTSTRAP_ADMIN_PASSWORD:}
   seed-demo: ${LAN_SEED_DEMO:false}
   challonge-base-url: ${CHALLONGE_BASE_URL:https://api.challonge.com/v1}
   challonge-poll-ms: 30000

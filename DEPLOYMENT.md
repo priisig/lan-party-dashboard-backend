@@ -48,8 +48,9 @@ BASE=https://raw.githubusercontent.com/priisig/lan-party-dashboard-backend/main/
 curl -fsSL "$BASE/docker-compose.yml" -o docker-compose.yml
 curl -fsSL "$BASE/.env.example"       -o .env
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
-sed -i "s/^LAN_BOOTSTRAP_ADMIN_CODE=.*/LAN_BOOTSTRAP_ADMIN_CODE=$(openssl rand -hex 4)/" .env
-grep LAN_BOOTSTRAP_ADMIN_CODE .env          # note the code for the first login
+sed -i "s/^LAN_BOOTSTRAP_ADMIN_EMAIL=.*/LAN_BOOTSTRAP_ADMIN_EMAIL=you@example.com/" .env   # your login
+sed -i "s/^LAN_BOOTSTRAP_ADMIN_PASSWORD=.*/LAN_BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -hex 8)/" .env
+grep LAN_BOOTSTRAP_ADMIN_ .env              # note the login for the first start
 chown -R github-runner: /docker/lan-party-dashboard
 chmod 600 .env
 ```
@@ -151,9 +152,12 @@ Add a new host in the existing reverse proxy:
 
 ### 6. After the first start
 
-1. Open `https://<domain>/admin` and log in with `LAN_BOOTSTRAP_ADMIN_CODE`.
-2. Create personal codes for every admin under **Admin → Admins**. Afterwards you can clear
-   `LAN_BOOTSTRAP_ADMIN_CODE` in `.env` (it only creates an admin if none exists).
+1. Open `https://<domain>/login`, log in with `LAN_BOOTSTRAP_ADMIN_EMAIL` / `LAN_BOOTSTRAP_ADMIN_PASSWORD` and change
+   the password under *Profil*.
+2. Let the other organisers register and give them the role *Orga* under **Admin → Teilnehmer**. Afterwards you can
+   clear `LAN_BOOTSTRAP_ADMIN_PASSWORD` in `.env` (it only creates an account if no organiser exists).
+   **Upgrading from the admin-code version:** the old codes are removed by migration `V4`; set the variables before
+   the deploy.
 3. Create the event under **Admin → Events** (see *Yearly workflow* in `README.md`), add the Challonge API key and
    push token under **Admin → Integrationen**.
 

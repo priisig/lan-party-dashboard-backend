@@ -5,15 +5,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import jakarta.validation.Valid;
-
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -29,20 +25,17 @@ import com.lanparty.dashboard.info.InfoService.InfoDto;
 import com.lanparty.dashboard.realtime.ChangeNotifier;
 import com.lanparty.dashboard.schedule.ScheduleService;
 import com.lanparty.dashboard.schedule.ScheduleView;
-import com.lanparty.dashboard.seating.SeatingDtos.ReservationRequest;
 import com.lanparty.dashboard.seating.SeatingDtos.SeatMapView;
 import com.lanparty.dashboard.seating.SeatingService;
 import com.lanparty.dashboard.server.GameServerService;
 import com.lanparty.dashboard.server.GameServerService.PublicServer;
 import com.lanparty.dashboard.stats.StatsService;
 import com.lanparty.dashboard.stats.StatsService.StatsView;
-import com.lanparty.dashboard.challonge.ChallongeSyncService;
 import com.lanparty.dashboard.tournament.TournamentDtos.Detail;
-import com.lanparty.dashboard.tournament.TournamentDtos.RegistrationRequest;
 import com.lanparty.dashboard.tournament.TournamentDtos.Summary;
 import com.lanparty.dashboard.tournament.TournamentService;
 
-/** Read-only dashboard data for the active event plus the two public forms (tournament sign-up, seat reservation). */
+/** Read-only dashboard data for the active event. Sign-ups and reservations need an account, see MeController. */
 @RestController
 @RequestMapping("/api/public")
 public class PublicController {
@@ -55,7 +48,6 @@ public class PublicController {
     private final ScheduleService schedule;
     private final GameServerService servers;
     private final TournamentService tournaments;
-    private final ChallongeSyncService challonge;
     private final SeatingService seating;
     private final StatsService stats;
     private final ChangeNotifier notifier;
@@ -63,7 +55,7 @@ public class PublicController {
 
     public PublicController(ActiveEventService activeEvent, EventService events, InfoService infos, BannerService banners,
                             LiveService live, ScheduleService schedule, GameServerService servers,
-                            TournamentService tournaments, ChallongeSyncService challonge, SeatingService seating,
+                            TournamentService tournaments, SeatingService seating,
                             StatsService stats, ChangeNotifier notifier, Clock clock) {
         this.activeEvent = activeEvent;
         this.events = events;
@@ -73,7 +65,6 @@ public class PublicController {
         this.schedule = schedule;
         this.servers = servers;
         this.tournaments = tournaments;
-        this.challonge = challonge;
         this.seating = seating;
         this.stats = stats;
         this.notifier = notifier;
@@ -124,24 +115,9 @@ public class PublicController {
         return tournaments.detail(activeEvent.get(), id);
     }
 
-    @PostMapping("/tournaments/{id}/registrations")
-    public Detail register(@PathVariable Long id, @Valid @RequestBody RegistrationRequest request) {
-        Event event = activeEvent.get();
-        tournaments.register(event, id, request);
-        challonge.syncSoon(id);
-        return tournaments.detail(event, id);
-    }
-
     @GetMapping("/seats")
     public SeatMapView seats() {
         return seating.map(activeEvent.get(), false);
-    }
-
-    @PostMapping("/seats/{label}/requests")
-    public SeatMapView requestSeat(@PathVariable String label, @Valid @RequestBody ReservationRequest request) {
-        Event event = activeEvent.get();
-        seating.requestSeat(event, label, request);
-        return seating.map(event, false);
     }
 
     @GetMapping("/stats")

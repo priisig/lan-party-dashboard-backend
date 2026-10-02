@@ -9,7 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
-/** A public seat reservation that an admin confirms or rejects. */
+/** A participant's seat reservation that an orga confirms or rejects (when approval is required). */
 @Entity
 public class SeatRequest {
 
@@ -19,6 +19,7 @@ public class SeatRequest {
 
     private Long seatId;
     private String gamertag;
+    private Long userId;
     private String companions;
 
     @Enumerated(EnumType.STRING)
@@ -29,15 +30,17 @@ public class SeatRequest {
     protected SeatRequest() {
     }
 
-    public SeatRequest(Long seatId, String gamertag, String companions) {
+    public SeatRequest(Long seatId, String gamertag, Long userId, String companions) {
         this.seatId = seatId;
         this.gamertag = gamertag;
+        this.userId = userId;
         this.companions = companions;
     }
 
     public Long getId() { return id; }
     public Long getSeatId() { return seatId; }
     public String getGamertag() { return gamertag; }
+    public Long getUserId() { return userId; }
     public String getCompanions() { return companions; }
     public RequestStatus getStatus() { return status; }
     public void setStatus(RequestStatus status) { this.status = status; }

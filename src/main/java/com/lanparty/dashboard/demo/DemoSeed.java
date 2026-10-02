@@ -182,11 +182,11 @@ public class DemoSeed implements ApplicationRunner {
                 "No Scope Nerds", "Camper Club", "Ping 999", "Clutch Kings", "Respawn Rats", "Frag Freunde",
                 "AFK Alpakas", "Team 13", "Team 14");
         for (int i = 0; i < teams.size(); i++) {
-            registrations.save(new Registration(cod4.getId(), "player" + (i + 1), teams.get(i), null, null));
+            registrations.save(new Registration(cod4.getId(), "player" + (i + 1), teams.get(i), null, null, null));
         }
         List<String> hunters = List.of("Lag_Legend", "PixelPanzer", "Ping999", "RushB", "AFK_Alpaka", "ClutchKing",
                 "Creeper_Kai", "Diamant_Dani", "Redstone_Rob");
-        hunters.forEach(h -> registrations.save(new Registration(ph.getId(), h, null, null, null)));
+        hunters.forEach(h -> registrations.save(new Registration(ph.getId(), h, null, null, null, null)));
 
         item(id, k.minus(Duration.ofMinutes(450)), "Frühstück", "Theke", GREY, null);
         item(id, k.minus(Duration.ofMinutes(330)), "Minecraft Bau-Challenge", "MC-1", GREEN, null);
@@ -206,10 +206,10 @@ public class DemoSeed implements ApplicationRunner {
         List<String> takenLabels = List.of("A3", "A4", "A5", "A7", "A8", "A10", "B1", "B2", "B3", "B5", "B6", "B8", "B9", "B10");
         for (int i = 0; i < takenLabels.size(); i++) {
             Seat seat = seats.findByEventIdAndLabelIgnoreCase(id, takenLabels.get(i)).orElseThrow();
-            seat.assign(seated[i]);
+            seat.assign(seated[i], null);
         }
         Seat requested = seats.findByEventIdAndLabelIgnoreCase(id, "B4").orElseThrow();
-        seatRequests.save(new SeatRequest(requested.getId(), "NoScopeNina", "Rush B"));
+        seatRequests.save(new SeatRequest(requested.getId(), "NoScopeNina", null, "Rush B"));
 
         Integration kuma = new Integration(id, "uptime-kuma", "Service-Status · Uptime Kuma",
                 "{\"baseUrl\":\"http://status.vivolan.local:3001\",\"slug\":\"lan\"}", 0);

@@ -32,6 +32,8 @@ import com.lanparty.dashboard.tournament.TournamentDtos.AdminRegistration;
 import com.lanparty.dashboard.tournament.TournamentDtos.AdminView;
 import com.lanparty.dashboard.tournament.TournamentDtos.Detail;
 import com.lanparty.dashboard.tournament.TournamentDtos.RegistrationRequest;
+import com.lanparty.dashboard.user.AppUser;
+import com.lanparty.dashboard.user.UserDtos.MyTournament;
 import com.lanparty.dashboard.tournament.TournamentDtos.StatusKind;
 import com.lanparty.dashboard.tournament.TournamentDtos.Summary;
 import com.lanparty.dashboard.tournament.TournamentDtos.TournamentRequest;
@@ -98,8 +100,11 @@ public class TournamentService {
     }
 
     @Transactional
-    public Registration register(Event event, Long tournamentId, RegistrationRequest request) {
+    public Registration register(Event event, Long tournamentId, AppUser user, String seatLabel, RegistrationRequest request) {
         Tournament t = find(event, tournamentId);
+        if (registrations.findByTournamentIdAndUserId(t.getId(), user.getId()).isPresent()) {
+            throw new BadRequestException("Du bist für " + t.getName() + " bereits angemeldet.");
+        }
         Instant now = clock.instant();
         if (!t.acceptsRegistrations(now)) {
             throw new BadRequestException("Die Anmeldung für " + t.getName() + " ist geschlossen.");
@@ -115,18 +120,52 @@ public class TournamentService {
         if (current.size() >= t.getMaxParticipants()) {
             throw new BadRequestException(t.getName() + " ist bereits voll (" + t.getMaxParticipants() + ").");
         }
-        String display = teamName != null ? teamName : request.gamertag().trim();
+        String display = teamName != null ? teamName : user.getNickname();
         if (current.stream().anyMatch(p -> p.equalsIgnoreCase(display))) {
             throw new BadRequestException("«" + display + "» ist bereits angemeldet.");
         }
         try {
-            Registration saved = registrations.saveAndFlush(new Registration(t.getId(), request.gamertag().trim(), teamName,
-                    blankToNull(request.teammates()), blankToNull(request.seatLabel())));
+            Registration saved = registrations.saveAndFlush(new Registration(t.getId(), user.getNickname(), teamName,
+                    blankToNull(request.teammates()), seatLabel, user.getId()));
             notifier.publish(Topic.TOURNAMENTS);
             return saved;
         } catch (DataIntegrityViolationException e) {
             throw new BadRequestException("«" + display + "» ist bereits angemeldet.");
         }
+    }
+
+    /** Withdraws the user's sign-up as long as it isn't in the Challonge bracket yet. */
+    @Transactional
+    public void withdraw(Event event, Long tournamentId, Long userId) {
+        Tournament t = find(event, tournamentId);
+        Registration r = registrations.findByTournamentIdAndUserId(t.getId(), userId)
+                .orElseThrow(() -> new NotFoundException("Du bist für " + t.getName() + " nicht angemeldet."));
+        if (r.getChallongeParticipantId() != null || bracket(t) != null && bracket(t).underway()) {
+            throw new BadRequestException("Du bist schon im Turnierbaum – bitte wende dich an die Orga.");
+        }
+        registrations.delete(r);
+        notifier.publish(Topic.TOURNAMENTS);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MyTournament> mine(Event event, Long userId) {
+        List<Tournament> list = tournaments.findByEventIdOrderBySort(event.getId());
+        if (list.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Registration> byTournament = new HashMap<>();
+        registrations.findByUserIdAndTournamentIdIn(userId, list.stream().map(Tournament::getId).toList())
+                .forEach(r -> byTournament.put(r.getTournamentId(), r));
+        Map<Long, String> serverNames = new HashMap<>();
+        List<MyTournament> out = new java.util.ArrayList<>();
+        for (Tournament t : list) {
+            Registration r = byTournament.get(t.getId());
+            if (r != null) {
+                Summary s = summary(event, t, bracket(t), 0, serverNames);
+                out.add(new MyTournament(t.getId(), t.getName(), t.getColor(), r.getTeamName(), s.statusText()));
+            }
+        }
+        return out;
     }
 
     // ---------------------------------------------------------------- admin

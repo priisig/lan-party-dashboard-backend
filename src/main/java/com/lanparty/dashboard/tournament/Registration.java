@@ -19,18 +19,20 @@ public class Registration {
     private String teamName;
     private String teammates;
     private String seatLabel;
+    private Long userId;
     private Long challongeParticipantId;
     private Instant createdAt = Instant.now();
 
     protected Registration() {
     }
 
-    public Registration(Long tournamentId, String gamertag, String teamName, String teammates, String seatLabel) {
+    public Registration(Long tournamentId, String gamertag, String teamName, String teammates, String seatLabel, Long userId) {
         this.tournamentId = tournamentId;
         this.gamertag = gamertag;
         this.teamName = teamName;
         this.teammates = teammates;
         this.seatLabel = seatLabel;
+        this.userId = userId;
     }
 
     /** Name used on Challonge and in the participant list: the team for team tournaments, else the gamertag. */
@@ -44,6 +46,7 @@ public class Registration {
     public String getTeamName() { return teamName; }
     public String getTeammates() { return teammates; }
     public String getSeatLabel() { return seatLabel; }
+    public Long getUserId() { return userId; }
     public Long getChallongeParticipantId() { return challongeParticipantId; }
     public void setChallongeParticipantId(Long challongeParticipantId) { this.challongeParticipantId = challongeParticipantId; }
     public Instant getCreatedAt() { return createdAt; }
