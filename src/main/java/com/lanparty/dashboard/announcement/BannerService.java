@@ -47,14 +47,14 @@ public class BannerService {
             Instant closesAt = t.getRegistrationClosesAt();
             if (t.isRegistrationOpen() && closesAt != null
                     && !now.isBefore(closesAt.minus(REGISTRATION_WARNING)) && now.isBefore(closesAt)) {
-                banners.add(new Banner("reg-" + t.getId(), Banner.Kind.REGISTRATION_CLOSING,
+                banners.add(new Banner("reg-" + t.getId(), Banner.Kind.REGISTRATION_CLOSING, Banner.Tone.WARNING,
                         "Anmeldung " + t.getName() + " schliesst um " + TIME.format(closesAt.atZone(zone)),
                         closesAt));
             }
         }
         for (Announcement a : manual) {
             if (a.isVisibleAt(now)) {
-                banners.add(new Banner("a-" + a.getId(), Banner.Kind.MANUAL, a.getText(), null));
+                banners.add(new Banner("a-" + a.getId(), Banner.Kind.MANUAL, a.getKind(), a.getText(), null));
             }
         }
         return banners;

@@ -132,9 +132,19 @@ public class DemoSeed implements ApplicationRunner {
         e.setStartsAt(k.minus(Duration.ofHours(24)));
         e.setEndsAt(k.plus(Duration.ofHours(24)));
         e.setActive(true);
-        e.setWelcomeTitle("Schön bist du da!\nGL & HF an der VIVO LAN 2026.");
         e.setWelcomeText("Alle Server, Turniere und den Zeitplan findest du hier. Für Turniere meldest du dich direkt im Tab «Turniere» an. Fragen? Das Orga-Team sitzt bei Platz A1.");
         e.setSeatOrientation(SeatOrientation.COLUMNS);
+        e.setWelcomeTitle("Willkommen an der {lila:VIVO LAN}.");
+        e.setLoginHeadline("Platz sichern.\n{lila:Rechner} {blau:einstecken.} {gruen:Zocken.}");
+        e.getNetwork().setWifiSsid("VIVO-LAN");
+        e.getNetwork().setWifiPassword("[PASSWORT]");
+        e.getNetwork().setLanIpMode("DHCP (automatisch)");
+        e.getNetwork().setLanSubnet("10.10.0.0/16");
+        e.getNetwork().setLanGateway("10.10.0.1");
+        e.getNetwork().setTsAddress("ts.vivolan.local");
+        e.getNetwork().setTsPort(9987);
+        e.getSeatRules().setSeatApprovalRequired(true);
+        e.getSeatRules().setSeatInfo("Pro Platz: [TISCHBREITE] cm Tischfläche, 1 Steckdose (Mehrfachstecker mitbringen) und 1 LAN-Port.");
         e.setLogo(resource("demo/logo.jpg"));
         e.setLogoContentType("image/jpeg");
         events.save(e);
@@ -149,7 +159,7 @@ public class DemoSeed implements ApplicationRunner {
         for (int i = 0; i < infoRows.size(); i++) {
             infos.save(new InfoItem(id, infoRows.get(i)[0], infoRows.get(i)[1], i));
         }
-        announcements.save(new Announcement(id, "Pizza-Bestellung bis 18:30 an der Theke", true, null, k.plus(Duration.ofHours(2)), 0));
+        announcements.save(new Announcement(id, "{gruen:Pizza}-Bestellung bis 18:30 an der Theke", com.lanparty.dashboard.announcement.Banner.Tone.INFO, true, null, k.plus(Duration.ofHours(2)), 0));
 
         GameServer cs1 = server(id, "CS2 · Turnier 5v5", "CS2-1", "10.0.0.21", 27015, QueryType.SOURCE, null, 0);
         server(id, "CS2 · Deathmatch", "CS2-2", "10.0.0.22", 27016, QueryType.SOURCE, null, 1);

@@ -5,6 +5,7 @@ import java.time.ZoneId;
 
 import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -47,6 +48,16 @@ public class Event {
 
     private boolean seatRowsReversed;
     private boolean seatNumbersReversed;
+    @Embedded
+    private NetworkInfo network = new NetworkInfo();
+
+    @Embedded
+    private SeatRules seatRules = new SeatRules();
+
+    private String loginHeadline;
+    /** JSON object section key -> heading override (may contain accent markup). */
+    private String headings = "{}";
+
     private int kioskIntervalSec = 30;
     private String kioskViews = "overview,tournaments,seating,stats";
     private Instant createdAt = Instant.now();
@@ -86,6 +97,22 @@ public class Event {
     public void setSeatRowsReversed(boolean seatRowsReversed) { this.seatRowsReversed = seatRowsReversed; }
     public boolean isSeatNumbersReversed() { return seatNumbersReversed; }
     public void setSeatNumbersReversed(boolean seatNumbersReversed) { this.seatNumbersReversed = seatNumbersReversed; }
+    public NetworkInfo getNetwork() {
+        if (network == null) {
+            network = new NetworkInfo();
+        }
+        return network;
+    }
+    public SeatRules getSeatRules() {
+        if (seatRules == null) {
+            seatRules = new SeatRules();
+        }
+        return seatRules;
+    }
+    public String getLoginHeadline() { return loginHeadline; }
+    public void setLoginHeadline(String loginHeadline) { this.loginHeadline = loginHeadline; }
+    public String getHeadings() { return headings; }
+    public void setHeadings(String headings) { this.headings = headings; }
     public int getKioskIntervalSec() { return kioskIntervalSec; }
     public void setKioskIntervalSec(int kioskIntervalSec) { this.kioskIntervalSec = kioskIntervalSec; }
     public String getKioskViews() { return kioskViews; }

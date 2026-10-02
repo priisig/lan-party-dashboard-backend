@@ -22,6 +22,8 @@ import com.lanparty.dashboard.announcement.AnnouncementService.AnnouncementDto;
 import com.lanparty.dashboard.event.EventDtos.CreateEventRequest;
 import com.lanparty.dashboard.event.EventDtos.EventRequest;
 import com.lanparty.dashboard.event.EventDtos.EventView;
+import com.lanparty.dashboard.event.EventDtos.NetworkDto;
+import com.lanparty.dashboard.event.EventDtos.SeatRulesDto;
 import com.lanparty.dashboard.event.EventService;
 import com.lanparty.dashboard.info.InfoService;
 import com.lanparty.dashboard.info.InfoService.InfoDto;
@@ -70,6 +72,16 @@ public class AdminEventController {
     @PutMapping("/{id}")
     public EventView update(@PathVariable Long id, @Valid @RequestBody EventRequest request) {
         return events.update(id, request);
+    }
+
+    @PutMapping("/{id}/network")
+    public EventView updateNetwork(@PathVariable Long id, @Valid @RequestBody NetworkDto request) {
+        return events.updateNetwork(id, request);
+    }
+
+    @PutMapping("/{id}/seat-rules")
+    public EventView updateSeatRules(@PathVariable Long id, @Valid @RequestBody SeatRulesDto request) {
+        return events.updateSeatRules(id, request);
     }
 
     @PostMapping("/{id}/activate")

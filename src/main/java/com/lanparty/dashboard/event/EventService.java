@@ -16,6 +16,9 @@ import com.lanparty.dashboard.common.NotFoundException;
 import com.lanparty.dashboard.event.EventDtos.CreateEventRequest;
 import com.lanparty.dashboard.event.EventDtos.EventRequest;
 import com.lanparty.dashboard.event.EventDtos.EventView;
+import com.lanparty.dashboard.event.EventDtos.NetworkDto;
+import com.lanparty.dashboard.event.EventDtos.SeatRulesDto;
+import com.lanparty.dashboard.common.Json;
 import com.lanparty.dashboard.info.InfoItem;
 import com.lanparty.dashboard.info.InfoItemRepository;
 import com.lanparty.dashboard.realtime.ChangeNotifier;
@@ -95,8 +98,56 @@ public class EventService {
         if (r.kioskViews() != null && !r.kioskViews().isBlank()) {
             e.setKioskViews(r.kioskViews());
         }
+        e.setLoginHeadline(blankToNull(r.loginHeadline()));
+        if (r.headings() != null) {
+            var node = Json.object();
+            r.headings().forEach((key, value) -> {
+                if (!EventDtos.HEADING_KEYS.contains(key)) {
+                    throw new BadRequestException("Unbekannte Überschrift: " + key);
+                }
+                if (value != null && !value.isBlank()) {
+                    node.put(key, value.trim());
+                }
+            });
+            e.setHeadings(Json.write(node));
+        }
         notifier.publish(Topic.EVENT);
         notifier.publish(Topic.SCHEDULE);
+        return EventView.of(e);
+    }
+
+    @Transactional
+    public EventView updateNetwork(Long id, NetworkDto r) {
+        Event e = find(id);
+        NetworkInfo n = e.getNetwork();
+        n.setWifiSsid(blankToNull(r.wifiSsid()));
+        n.setWifiPassword(r.wifiPassword() == null || r.wifiPassword().isEmpty() ? null : r.wifiPassword());
+        n.setWifiSecurity(r.wifiSecurity());
+        n.setWifiHidden(r.wifiHidden());
+        n.setLanIpMode(blankToNull(r.lanIpMode()));
+        n.setLanSubnet(blankToNull(r.lanSubnet()));
+        n.setLanGateway(blankToNull(r.lanGateway()));
+        n.setTsAddress(blankToNull(r.tsAddress()));
+        n.setTsPort(r.tsPort());
+        n.setTsPassword(blankToNull(r.tsPassword()));
+        if (n.getWifiSecurity() != WifiSecurity.OPEN && n.getWifiSsid() != null
+                && (n.getWifiPassword() == null || n.getWifiPassword().length() < 8)) {
+            throw new BadRequestException("Ein WPA-Passwort braucht mindestens 8 Zeichen.");
+        }
+        notifier.publish(Topic.EVENT);
+        return EventView.of(e);
+    }
+
+    @Transactional
+    public EventView updateSeatRules(Long id, SeatRulesDto r) {
+        Event e = find(id);
+        SeatRules rules = e.getSeatRules();
+        rules.setSeatSelectionOpen(r.selectionOpen());
+        rules.setSeatChangeAllowed(r.changeAllowed());
+        rules.setSeatApprovalRequired(r.approvalRequired());
+        rules.setSeatInfo(blankToNull(r.info()));
+        notifier.publish(Topic.EVENT);
+        notifier.publish(Topic.SEATS);
         return EventView.of(e);
     }
 
@@ -197,6 +248,25 @@ public class EventService {
         target.setLogo(source.getLogo());
         target.setLogoContentType(source.getLogoContentType());
         target.setKioskIntervalSec(source.getKioskIntervalSec());
+        target.setLoginHeadline(source.getLoginHeadline());
+        target.setHeadings(source.getHeadings());
+        NetworkInfo from = source.getNetwork();
+        NetworkInfo to = target.getNetwork();
+        to.setWifiSsid(from.getWifiSsid());
+        to.setWifiPassword(from.getWifiPassword());
+        to.setWifiSecurity(from.getWifiSecurity());
+        to.setWifiHidden(from.isWifiHidden());
+        to.setLanIpMode(from.getLanIpMode());
+        to.setLanSubnet(from.getLanSubnet());
+        to.setLanGateway(from.getLanGateway());
+        to.setTsAddress(from.getTsAddress());
+        to.setTsPort(from.getTsPort());
+        to.setTsPassword(from.getTsPassword());
+        SeatRules rules = target.getSeatRules();
+        rules.setSeatSelectionOpen(source.getSeatRules().isSeatSelectionOpen());
+        rules.setSeatChangeAllowed(source.getSeatRules().isSeatChangeAllowed());
+        rules.setSeatApprovalRequired(source.getSeatRules().isSeatApprovalRequired());
+        rules.setSeatInfo(source.getSeatRules().getSeatInfo());
         target.setKioskViews(source.getKioskViews());
     }
 

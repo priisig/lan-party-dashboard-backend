@@ -25,13 +25,13 @@ public class AnnouncementService {
         this.notifier = notifier;
     }
 
-    public record AnnouncementDto(Long id, @NotBlank @Size(max = 500) String text, boolean enabled, Instant startsAt, Instant endsAt) {
+    public record AnnouncementDto(Long id, @NotBlank @Size(max = 500) String text, Banner.Tone kind, boolean enabled, Instant startsAt, Instant endsAt) {
     }
 
     @Transactional(readOnly = true)
     public List<AnnouncementDto> list(Event event) {
         return announcements.findByEventIdOrderBySort(event.getId()).stream()
-                .map(a -> new AnnouncementDto(a.getId(), a.getText(), a.isEnabled(), a.getStartsAt(), a.getEndsAt()))
+                .map(a -> new AnnouncementDto(a.getId(), a.getText(), a.getKind(), a.isEnabled(), a.getStartsAt(), a.getEndsAt()))
                 .toList();
     }
 
@@ -46,7 +46,7 @@ public class AnnouncementService {
         announcements.flush();
         for (int i = 0; i < items.size(); i++) {
             AnnouncementDto a = items.get(i);
-            announcements.save(new Announcement(event.getId(), a.text().trim(), a.enabled(), a.startsAt(), a.endsAt(), i));
+            announcements.save(new Announcement(event.getId(), a.text().trim(), a.kind(), a.enabled(), a.startsAt(), a.endsAt(), i));
         }
         notifier.publish(Topic.BANNERS);
         return list(event);
