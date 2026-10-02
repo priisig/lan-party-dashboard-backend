@@ -70,13 +70,18 @@ real event, or delete the demo event afterwards.
 ## Development
 
 ```bash
-# Postgres for development
-docker run -d --name lan-pg -e POSTGRES_DB=lan_dashboard -e POSTGRES_USER=lan -e POSTGRES_PASSWORD=lan \
-  -p 5432:5432 postgres:17-alpine
+cp .env.example .env    # once; local settings (organiser login, demo data) – git-ignored
+./gradlew bootRun       # Windows: gradlew.bat bootRun – or run LanDashboardApplication in the IDE
+```
 
-# Run with demo data and an organiser account orga@lan.local / orga-pass
-LAN_SEED_DEMO=true LAN_BOOTSTRAP_ADMIN_EMAIL=orga@lan.local LAN_BOOTSTRAP_ADMIN_PASSWORD=orga-pass ./gradlew bootRun
+With Docker running, `bootRun` starts its own Postgres from `compose.yaml` (random host port, data in the
+`lan-dashboard-dev-db` volume) and connects to it – no DB setup needed. The container keeps running after you stop
+the app; `docker compose down` stops it, `docker compose down -v` also deletes the data. To use your own Postgres,
+set `LAN_DEV_DOCKER_DB=false` and `DB_URL`/`DB_USER`/`DB_PASSWORD` in `.env`.
 
+The default `.env` creates the organiser `orga@lan.local` / `orga-pass` and a demo event.
+
+```bash
 ./gradlew test        # unit + integration tests (Testcontainers starts its own Postgres)
 ./gradlew bootJar     # build/libs/lan-dashboard-backend.jar
 ```
@@ -84,6 +89,8 @@ LAN_SEED_DEMO=true LAN_BOOTSTRAP_ADMIN_EMAIL=orga@lan.local LAN_BOOTSTRAP_ADMIN_
 Start the frontend with `npm run dev` in the frontend repo. Vite proxies `/api` to `localhost:8080`.
 
 ### Configuration
+
+All variables can also be put into `.env` for local development.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -96,6 +103,7 @@ Start the frontend with `npm run dev` in the frontend repo. Vite proxies `/api` 
 | `CHALLONGE_BASE_URL` | `https://api.challonge.com/v1` | Challonge API |
 | `COOKIE_SECURE` | `false` | session cookie only over HTTPS (`true` in production) |
 | `PORT` | `8080` | HTTP port |
+| `LAN_DEV_DOCKER_DB` | `true` | local development only: start Postgres from `compose.yaml` |
 
 Polling intervals are set in `application.yml` (`lan.challonge-poll-ms`, `lan.server-query-ms`,
 `lan.integration-poll-ms`). The Challonge API key and the push token are set in the admin UI and stored in the

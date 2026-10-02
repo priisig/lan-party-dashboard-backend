@@ -1,6 +1,15 @@
 spring:
   application:
     name: lan-dashboard
+  config:
+    # Local settings for development (see .env.example); absent in Docker, where real env vars are used.
+    import: optional:file:.env[.properties]
+  docker:
+    compose:
+      # Only active with bootRun / the IDE (dependency is developmentOnly). Set LAN_DEV_DOCKER_DB=false
+      # in .env to use your own database via DB_URL instead.
+      enabled: ${LAN_DEV_DOCKER_DB:true}
+      lifecycle-management: start-only
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/lan_dashboard}
     username: ${DB_USER:lan}
